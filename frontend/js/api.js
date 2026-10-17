@@ -13,9 +13,9 @@
    Backend runs at: http://localhost:8081/api
    ============================================ */
 
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '3000')
     ? 'http://localhost:8081/api'
-    : (localStorage.getItem('BACKEND_URL') || 'https://smartinventory-backend.onrender.com/api');
+    : '/api';
 
 
 // ============================================

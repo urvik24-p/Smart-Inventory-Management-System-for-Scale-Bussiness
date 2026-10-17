@@ -61,8 +61,17 @@ public class SecurityConfig {
             // Endpoint access rules
             .authorizeHttpRequests(auth -> auth
 
-                // PUBLIC — login and register endpoints (no token needed)
-                .requestMatchers("/api/auth/login").permitAll()
+                // PUBLIC — Frontend static files & login endpoint (no token needed)
+                .requestMatchers(
+                    "/",
+                    "/index.html",
+                    "/dashboard.html",
+                    "/css/**",
+                    "/js/**",
+                    "/pages/**",
+                    "/favicon.ico",
+                    "/api/auth/login"
+                ).permitAll()
 
                 // ADMIN ONLY — register new users
                 .requestMatchers("/api/auth/register").hasRole("ADMIN")
