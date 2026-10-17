@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Inventory — Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card">
+
+    <div class="login-logo"><i class="bi bi-box-seam-fill"></i></div>
+    <h2>Smart Inventory</h2>
+    <p>Instrument Management System</p>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="login-username">Username</label>
+        <input class="form-input" type="text" id="login-username" placeholder="Enter username" required autocomplete="username">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="login-password">
+          Password
+          <span id="pw-toggle" style="float:right;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;color:var(--blue);">
+            <i class="bi bi-eye"></i> Show
+          </span>
+        </label>
+        <input class="form-input" type="password" id="login-password" placeholder="Enter password" required autocomplete="current-password">
+      </div>
+
+      <div id="login-error" style="display:none;background:var(--danger-bg);border:1px solid var(--danger-bdr);color:var(--danger);border-radius:7px;padding:9px 12px;font-size:12px;margin-bottom:12px;"></div>
+
+      <button type="submit" class="btn-blue" id="login-btn" style="width:100%;justify-content:center;padding:10px;font-size:14px;border-radius:8px;">
+        <i class="bi bi-box-arrow-in-right"></i>
+        <span id="btn-text">Sign In</span>
+      </button>
+    </form>
+
+    <div class="demo-box">
+      <i class="bi bi-info-circle me-1"></i>
+      Demo Login &nbsp;—&nbsp; Username: <strong>admin</strong> &nbsp;|&nbsp; Password: <strong>admin123</strong>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  // Redirect if already logged in
+  if (localStorage.getItem('token')) window.location.href = 'dashboard.html';
+
+  // Password show/hide
+  document.getElementById('pw-toggle').addEventListener('click', function() {
+    var inp = document.getElementById('login-password');
+    var hide = inp.type === 'text';
+    inp.type = hide ? 'password' : 'text';
+    this.innerHTML = hide ? '<i class="bi bi-eye"></i> Show' : '<i class="bi bi-eye-slash"></i> Hide';
+  });
+
+  // Login submit
+  document.getElementById('login-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var errDiv  = document.getElementById('login-error');
+    var btn     = document.getElementById('login-btn');
+    var btnText = document.getElementById('btn-text');
+    errDiv.style.display = 'none';
+    btn.disabled = true;
+    btnText.textContent = 'Signing in...';
+    try {
+      var data = await AuthAPI.login(
+        document.getElementById('login-username').value.trim(),
+        document.getElementById('login-password').value
+      );
+      localStorage.setItem('token',    data.token);
+      localStorage.setItem('username', data.username);
+      localStorage.setItem('role',     data.role);
+      window.location.href = 'dashboard.html';
+    } catch(err) {
+      errDiv.textContent = err.message || 'Invalid credentials.';
+      errDiv.style.display = 'block';
+      btn.disabled = false;
+      btnText.textContent = 'Sign In';
+    }
+  });
+</script>
+</body>
+</html>
