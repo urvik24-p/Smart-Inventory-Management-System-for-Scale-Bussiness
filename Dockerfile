@@ -16,9 +16,10 @@ WORKDIR /app
 # Copy the built jar from the build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Render assigns a dynamic port via the PORT environment variable
-ENV PORT=8081
-EXPOSE 8081
+# Render assigns the PORT environment variable dynamically at runtime.
+# application.properties reads it via: server.port=${PORT:8080}
+# Do NOT hardcode PORT here — it would override Render's assignment.
+EXPOSE 8080
 
 # application.properties resolves the deployment-provided PORT.
 ENTRYPOINT ["java", "-jar", "app.jar"]

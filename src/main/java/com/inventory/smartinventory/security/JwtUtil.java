@@ -38,7 +38,16 @@ public class JwtUtil {
     // ============================================
 
     private Key getSigningKey() {
-        byte[] keyBytes = Base64.getDecoder().decode(secretBase64);
+        // Normalize: accept standard Base64 (+/) OR URL-safe Base64 (-_),
+        // then use MIME decoder which is tolerant of whitespace/line breaks.
+        String normalized = secretBase64
+                .replace('-', '+')
+                .replace('_', '/');
+        // Pad to a multiple of 4 if necessary
+        int pad = normalized.length() % 4;
+        if (pad == 2) normalized += "==";
+        else if (pad == 3) normalized += "=";
+        byte[] keyBytes = Base64.getMimeDecoder().decode(normalized);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
