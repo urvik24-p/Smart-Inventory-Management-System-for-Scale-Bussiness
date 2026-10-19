@@ -25,9 +25,9 @@ public class SecurityConfig {
     private final List<String> allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          @Value("${app.security.allowed-origins}") List<String> allowedOrigins) {
+                          @Value("${app.security.allowed-origins:*}") List<String> allowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.allowedOrigins = allowedOrigins;
+        this.allowedOrigins = (allowedOrigins == null || allowedOrigins.isEmpty()) ? List.of("*") : allowedOrigins;
     }
 
     @Bean

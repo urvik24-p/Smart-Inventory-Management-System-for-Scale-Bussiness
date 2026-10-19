@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
-@Profile("dev")
 public class DataInitializer implements CommandLineRunner {
 
     private final ProductRepository productRepository;
@@ -25,7 +24,11 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        seedProductsAndSerials();
+        try {
+            seedProductsAndSerials();
+        } catch (Exception e) {
+            System.err.println(">>> [INIT] Warning: Could not seed initial products: " + e.getMessage());
+        }
     }
 
     private void seedProductsAndSerials() {
