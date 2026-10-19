@@ -1,0 +1,570 @@
+﻿================================================================================
+  SMART INVENTORY MANAGEMENT SYSTEM - COMPLETE DATABASE DOCUMENTATION
+  Database: MySQL 8.x   ORM: Hibernate/JPA   Migrations: Flyway
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+  1.  Database Overview
+  2.  ER Diagram (Text Format)
+  3.  Entity Relationships Summary
+  4.  Table: users
+  5.  Table: products
+  6.  Table: serial_numbers
+  7.  Table: stock_transactions
+  8.  Table: stock_transaction_items
+  9.  Enums
+  10. Indexes and Constraints
+  11. Business Rules and Data Integrity
+  12. Flyway Migrations
+  13. Connection Configuration
+  14. Useful Queries
+
+
+================================================================================
+1. DATABASE OVERVIEW
+================================================================================
+
+  Database name    : smartinventory  (configurable via env var)
+  Charset          : utf8mb4
+  Collation        : utf8mb4_unicode_ci
+  Engine           : InnoDB (FK constraints enforced)
+
+  Total Tables     : 5
+    1. users
+    2. products
+    3. serial_numbers
+    4. stock_transactions
+    5. stock_transaction_items
+
+  Schema managed by: Flyway (automatic on startup)
+  ORM              : Spring Data JPA / Hibernate
+  DDL mode         : validate (Hibernate checks but never changes schema)
+
+
+================================================================================
+2. ER DIAGRAM (ASCII)
+================================================================================
+
+  +----------------+          +-------------------+
+  |    USERS       |          |    PRODUCTS       |
+  +----------------+          +-------------------+
+  | PK user_id     |          | PK product_id     |
+  |    username UK |          |    product_name   |
+  |    password    |          |    category       |
+  |    role        |          |    brand          |
+  |    created_at  |          |    created_at     |
+  +----------------+          +-------------------+
+                                    |  1
+                                    |
+                          +---------+---------+
+                          |                   |
+                          | many              | many
+                +------------------+   +---------------------------+
+                | SERIAL_NUMBERS   |   | STOCK_TRANSACTION_ITEMS   |
+                +------------------+   +---------------------------+
+                | PK serial_id     |   | PK item_id                |
+                | FK product_id -->|   | FK transaction_id -------->+
+                |    serial_number |   | FK product_id  ----------->|
+                |    status        |   | FK serial_id  ------------>+
+                |    created_at    |   |    quantity               |
+                +------------------+   +---------------------------+
+                       |  1                         |
+                       |  1                    many |
+                       +----------------------------+
+                                         many |
+                                             |
+                              +-----------------------+
+                              | STOCK_TRANSACTIONS    |
+                              +-----------------------+
+                              | PK transaction_id     |
+                              |    transaction_type   |
+                              |    reference_note     |
+                              |    created_at         |
+                              +-----------------------+
+
+  RELATIONSHIP SUMMARY:
+    PRODUCTS          (1) ---< (many)  SERIAL_NUMBERS
+    PRODUCTS          (1) ---< (many)  STOCK_TRANSACTION_ITEMS
+    SERIAL_NUMBERS    (1) ---< (many)  STOCK_TRANSACTION_ITEMS
+    STOCK_TRANSACTIONS(1) ---< (many)  STOCK_TRANSACTION_ITEMS
+    USERS             -- standalone (no FK relations to other tables)
+
+
+================================================================================
+3. ENTITY RELATIONSHIPS SUMMARY
+================================================================================
+
+  ENTITY                   CARDINALITY    ENTITY
+  ------------------------ -------------- ------------------------
+  Product                  1 to many      SerialNumber
+  Product                  1 to many      StockTransactionItem
+  SerialNumber             1 to many      StockTransactionItem
+  StockTransaction         1 to many      StockTransactionItem
+
+  NOTE: Users (AppUser) are standalone. They authenticate via JWT.
+        There is no FK linking users to transactions (by design - audit trail
+        shows timestamps but not which user performed the action in v1).
+
+
+================================================================================
+4. TABLE: users
+================================================================================
+
+  Java Entity   : AppUser.java
+  Table Name    : users
+  Purpose       : Stores login credentials and role for each system user.
+
+  COLUMNS:
+  +--------------+-------------+----------+---------+-----------+-----------------------------+
+  | Column       | Type        | Nullable | Default | Key       | Description                 |
+  +--------------+-------------+----------+---------+-----------+-----------------------------+
+  | user_id      | INT         | NOT NULL | AUTO    | PK        | Auto-increment primary key  |
+  | username     | VARCHAR(50) | NOT NULL |         | UK        | Unique login name           |
+  | password     | VARCHAR(255)| NOT NULL |         |           | BCrypt-hashed password      |
+  | role         | VARCHAR(10) | NOT NULL |         |           | ENUM: ADMIN or STAFF        |
+  | created_at   | DATETIME    | YES      | NULL    |           | Account creation timestamp  |
+  +--------------+-------------+----------+---------+-----------+-----------------------------+
+
+  NOTES:
+    - Passwords are ALWAYS stored as BCrypt hashes. Never plain text.
+    - role is stored as a string: 'ADMIN' or 'STAFF'
+    - username must be globally unique
+    - No FK relationships to other tables
+    - No soft-delete: deleting a user is permanent
+
+  SAMPLE ROW:
+    user_id  : 1
+    username : admin
+    password : $2a$10$... (60-char BCrypt hash)
+    role     : ADMIN
+    created_at: 2026-10-19 14:30:00
+
+
+================================================================================
+5. TABLE: products
+================================================================================
+
+  Java Entity   : Product.java
+  Table Name    : products
+  Purpose       : The product catalogue. Each row is a type of instrument.
+
+  COLUMNS:
+  +--------------+--------------+----------+---------+-----------+-----------------------------+
+  | Column       | Type         | Nullable | Default | Key       | Description                 |
+  +--------------+--------------+----------+---------+-----------+-----------------------------+
+  | product_id   | INT          | NOT NULL | AUTO    | PK        | Auto-increment primary key  |
+  | product_name | VARCHAR(255) | NOT NULL |         |           | Name of the instrument      |
+  | category     | VARCHAR(100) | YES      | NULL    |           | Category e.g. pH Meters     |
+  | brand        | VARCHAR(100) | YES      | NULL    |           | Brand e.g. Hanna Instruments|
+  | created_at   | DATETIME     | YES      | NULL    |           | When product was added      |
+  +--------------+--------------+----------+---------+-----------+-----------------------------+
+
+  NOTES:
+    - product_name is required; category and brand are optional
+    - Products with serial number history should NOT be deleted
+      (FK constraint from serial_numbers and stock_transaction_items will block)
+    - No stock quantity column - stock is derived from serial_numbers table
+
+  SAMPLE ROW:
+    product_id  : 1
+    product_name: pH Meter HI98130
+    category    : Testing Instruments
+    brand       : Hanna Instruments
+    created_at  : 2026-10-19 10:00:00
+
+
+================================================================================
+6. TABLE: serial_numbers
+================================================================================
+
+  Java Entity   : SerialNumber.java
+  Table Name    : serial_numbers
+  Purpose       : Tracks each individual physical unit of a product.
+                  Each row = one physical instrument with a unique serial number.
+
+  COLUMNS:
+  +---------------+--------------+----------+---------+-----------+-----------------------------+
+  | Column        | Type         | Nullable | Default | Key       | Description                 |
+  +---------------+--------------+----------+---------+-----------+-----------------------------+
+  | serial_id     | INT          | NOT NULL | AUTO    | PK        | Auto-increment primary key  |
+  | product_id    | INT          | NOT NULL |         | FK        | References products.product_id|
+  | serial_number | VARCHAR(100) | NOT NULL |         | UK        | Globally unique serial code |
+  | status        | VARCHAR(20)  | NOT NULL | available|          | ENUM: available/sold/damaged|
+  | created_at    | DATETIME     | YES      | NULL    |           | When serial was registered  |
+  +---------------+--------------+----------+---------+-----------+-----------------------------+
+
+  FOREIGN KEYS:
+    product_id -> products.product_id  (many-to-one)
+
+  INDEXES:
+    PK on serial_id
+    UK on serial_number  (globally unique)
+    INDEX on product_id  (FK lookup)
+
+  STATUS LIFECYCLE:
+    available  -->  sold      (via Stock Out operation)
+    available  -->  damaged   (manually by ADMIN)
+    sold       -->  (no change allowed in v1)
+    damaged    -->  (no change allowed in v1)
+
+  NOTES:
+    - serial_number is unique across ALL products (not just per product)
+    - Default status on creation: 'available'
+    - Created via Stock In operation (or manually via serial number management)
+    - Deleted serials are permanently gone (no soft-delete)
+
+  SAMPLE ROW:
+    serial_id    : 42
+    product_id   : 1
+    serial_number: HI98130-SN-2024-001
+    status       : available
+    created_at   : 2026-10-19 11:00:00
+
+
+================================================================================
+7. TABLE: stock_transactions
+================================================================================
+
+  Java Entity   : StockTransaction.java
+  Table Name    : stock_transactions
+  Purpose       : Header record for one stock movement event.
+                  Records WHO did it (via created_at), WHEN, and WHAT TYPE.
+
+  COLUMNS:
+  +------------------+--------------+----------+---------+-----------+---------------------------+
+  | Column           | Type         | Nullable | Default | Key       | Description               |
+  +------------------+--------------+----------+---------+-----------+---------------------------+
+  | transaction_id   | INT          | NOT NULL | AUTO    | PK        | Auto-increment primary key|
+  | transaction_type | VARCHAR(10)  | NOT NULL |         |           | 'IN' or 'OUT'             |
+  | reference_note   | VARCHAR(255) | YES      | NULL    |           | PO number, customer, notes|
+  | created_at       | DATETIME     | YES      | NULL    |           | When transaction occurred |
+  +------------------+--------------+----------+---------+-----------+---------------------------+
+
+  NOTES:
+    - transaction_type is 'IN' (stock received) or 'OUT' (stock dispatched)
+    - reference_note is free text: PO number, customer name, invoice ref, etc.
+    - Transactions are IMMUTABLE audit records - never delete or modify
+    - Each transaction has 1 or more items in stock_transaction_items
+    - One transaction covers one product + multiple serial numbers
+
+  SAMPLE ROWS:
+    transaction_id : 101
+    transaction_type: IN
+    reference_note : PO-2024-0055
+    created_at     : 2026-10-19 12:00:00
+
+    transaction_id : 102
+    transaction_type: OUT
+    reference_note : Customer: ABC Lab / Invoice INV-009
+    created_at     : 2026-10-19 14:30:00
+
+
+================================================================================
+8. TABLE: stock_transaction_items
+================================================================================
+
+  Java Entity   : StockTransactionItem.java
+  Table Name    : stock_transaction_items
+  Purpose       : Line items for a transaction.
+                  Each row = one serial number moved in one transaction.
+
+  COLUMNS:
+  +----------------+------+----------+---------+-----------+------------------------------+
+  | Column         | Type | Nullable | Default | Key       | Description                  |
+  +----------------+------+----------+---------+-----------+------------------------------+
+  | item_id        | INT  | NOT NULL | AUTO    | PK        | Auto-increment primary key   |
+  | transaction_id | INT  | NOT NULL |         | FK        | References stock_transactions|
+  | product_id     | INT  | NOT NULL |         | FK        | References products          |
+  | serial_id      | INT  | NOT NULL |         | FK        | References serial_numbers    |
+  | quantity       | INT  | NOT NULL | 1       |           | Always 1 (per serial row)    |
+  +----------------+------+----------+---------+-----------+------------------------------+
+
+  FOREIGN KEYS:
+    transaction_id -> stock_transactions.transaction_id
+    product_id     -> products.product_id
+    serial_id      -> serial_numbers.serial_id
+
+  INDEXES:
+    PK on item_id
+    INDEX on transaction_id (FK lookup)
+    INDEX on product_id     (FK lookup)
+    INDEX on serial_id      (FK lookup)
+
+  NOTES:
+    - quantity is always 1 (one row per serial number)
+    - product_id is stored for direct lookup without joining serial_numbers
+    - This is an immutable audit record - never modify after creation
+    - CASCADE DELETE from stock_transactions (if transaction deleted, items deleted)
+      (but transactions should never be deleted in production)
+
+  SAMPLE ROWS (for transaction_id=101, Stock In of 3 units):
+    item_id:1, transaction_id:101, product_id:1, serial_id:42, quantity:1
+    item_id:2, transaction_id:101, product_id:1, serial_id:43, quantity:1
+    item_id:3, transaction_id:101, product_id:1, serial_id:44, quantity:1
+
+
+================================================================================
+9. ENUMS
+================================================================================
+
+  SerialStatus (stored as VARCHAR in DB):
+  +-----------+----------------------------------------------------------+
+  | Value     | Meaning                                                  |
+  +-----------+----------------------------------------------------------+
+  | available | Unit is in stock and can be dispatched                   |
+  | sold      | Unit has been dispatched via Stock Out                   |
+  | damaged   | Unit is damaged and cannot be sold (set by ADMIN)        |
+  +-----------+----------------------------------------------------------+
+
+  UserRole (stored as VARCHAR in DB):
+  +---------+----------------------------------------------------------+
+  | Value   | Meaning                                                  |
+  +---------+----------------------------------------------------------+
+  | ADMIN   | Full system access including user management             |
+  | STAFF   | Can perform stock in/out, view all data, no admin tools  |
+  +---------+----------------------------------------------------------+
+
+  TransactionType (inner enum in StockTransaction.java):
+  +-------+----------------------------------------------------------+
+  | Value | Meaning                                                  |
+  +-------+----------------------------------------------------------+
+  | IN    | Stock received into inventory                            |
+  | OUT   | Stock dispatched to customer                             |
+  +-------+----------------------------------------------------------+
+
+
+================================================================================
+10. INDEXES AND CONSTRAINTS
+================================================================================
+
+  TABLE: users
+    PRIMARY KEY: user_id
+    UNIQUE     : username
+
+  TABLE: products
+    PRIMARY KEY: product_id
+
+  TABLE: serial_numbers
+    PRIMARY KEY: serial_id
+    UNIQUE     : serial_number
+    FOREIGN KEY: product_id -> products(product_id)
+    INDEX      : product_id
+
+  TABLE: stock_transactions
+    PRIMARY KEY: transaction_id
+
+  TABLE: stock_transaction_items
+    PRIMARY KEY: item_id
+    FOREIGN KEY: transaction_id -> stock_transactions(transaction_id) ON DELETE CASCADE
+    FOREIGN KEY: product_id     -> products(product_id)
+    FOREIGN KEY: serial_id      -> serial_numbers(serial_id)
+    INDEX      : transaction_id
+    INDEX      : product_id
+    INDEX      : serial_id
+
+
+================================================================================
+11. BUSINESS RULES AND DATA INTEGRITY
+================================================================================
+
+  RULE 1: Serial numbers are globally unique
+    A serial number cannot appear twice in serial_numbers.serial_number,
+    even across different products. Enforced by UNIQUE constraint.
+
+  RULE 2: Stock In creates serial numbers
+    When a Stock In is processed:
+      a) New serial_numbers rows are inserted with status='available'
+      b) A stock_transactions row is created with type='IN'
+      c) stock_transaction_items rows are created linking all serials
+
+  RULE 3: Stock Out changes serial status
+    When a Stock Out is processed:
+      a) Selected serial_numbers.status changes from 'available' to 'sold'
+      b) A stock_transactions row is created with type='OUT'
+      c) stock_transaction_items rows link the dispatched serials
+      d) Only 'available' serials can be dispatched (enforced in service layer)
+
+  RULE 4: Products cannot be deleted if they have history
+    If a product has serial_numbers or stock_transaction_items,
+    MySQL FK constraints will prevent deletion.
+    Use soft-delete / archival (future feature) instead.
+
+  RULE 5: Transactions are immutable audit records
+    stock_transactions and stock_transaction_items should never be
+    modified or deleted after creation. They form the audit trail.
+
+  RULE 6: Passwords are never stored in plain text
+    users.password is always a BCrypt hash (prefix $2a$).
+
+  RULE 7: Serial number status transitions
+    available --> sold     (Stock Out only)
+    available --> damaged  (Admin action only)
+    sold      --> no further changes allowed (v1)
+    damaged   --> no further changes allowed (v1)
+
+  RULE 8: Inventory count is derived, not stored
+    There is no "stock_quantity" column.
+    Available count = COUNT(*) FROM serial_numbers WHERE product_id=X AND status='available'
+    Sold count      = COUNT(*) FROM serial_numbers WHERE product_id=X AND status='sold'
+    Damaged count   = COUNT(*) FROM serial_numbers WHERE product_id=X AND status='damaged'
+    Total count     = COUNT(*) FROM serial_numbers WHERE product_id=X
+
+
+================================================================================
+12. FLYWAY MIGRATIONS
+================================================================================
+
+  Location: src/main/resources/db/migration/
+  Format  : V{version}__{description}.sql
+
+  HOW IT WORKS:
+    1. On every app startup, Flyway checks flyway_schema_history table
+    2. Finds and runs any V*.sql files not yet applied
+    3. Records each migration with checksum in flyway_schema_history
+    4. spring.jpa.hibernate.ddl-auto=validate ensures Java entities match DB
+
+  CURRENT MIGRATION:
+    V1__initial_schema.sql  - Creates all 5 tables with indexes and FKs
+
+  TO ADD A COLUMN OR TABLE:
+    Create: src/main/resources/db/migration/V2__add_description_column.sql
+    Example content:
+      ALTER TABLE products ADD COLUMN description TEXT NULL AFTER brand;
+    Flyway runs it automatically on next startup.
+
+  IMPORTANT:
+    - NEVER edit an existing V*.sql file that has been applied to any DB
+    - NEVER manually ALTER tables in production
+    - Flyway baseline-version=1 means existing DBs (pre-Flyway) are recorded at V1
+
+  LEGACY SQL FILES (do NOT run on production):
+    fix_tables.sql      - Dev-era fix (drops + recreates tables)
+    rebuild_db.sql      - Full rebuild (drops everything)
+    setup_database.sql  - Initial dev setup (drops tables)
+    These are retained for historical reference only.
+
+
+================================================================================
+13. CONNECTION CONFIGURATION
+================================================================================
+
+  application.properties settings:
+    spring.datasource.url      = ${SPRING_DATASOURCE_URL}
+    spring.datasource.username = ${SPRING_DATASOURCE_USERNAME}
+    spring.datasource.password = ${SPRING_DATASOURCE_PASSWORD}
+
+  Connection pool (HikariCP defaults):
+    maximum-pool-size = ${DB_POOL_MAX_SIZE:10}
+    minimum-idle      = ${DB_POOL_MIN_IDLE:2}
+
+  Timezone: UTC (set in application.properties via hibernate.jdbc.time_zone)
+
+  JDBC URL FORMAT:
+    Local MySQL:
+      jdbc:mysql://localhost:3306/smartinventory?useSSL=false&serverTimezone=UTC
+
+    Cloud MySQL (PlanetScale/Aiven):
+      jdbc:mysql://HOST:PORT/DBNAME?useSSL=true&requireSSL=true
+
+    TiDB Cloud:
+      jdbc:mysql://HOST:PORT/DBNAME?useSSL=true&requireSSL=true
+
+  MINIMUM DB USER PERMISSIONS:
+    GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX
+    ON smartinventory.* TO 'inv_user'@'%';
+    FLUSH PRIVILEGES;
+
+
+================================================================================
+14. USEFUL QUERIES
+================================================================================
+
+  -- Current inventory per product
+  SELECT
+    p.product_id,
+    p.product_name,
+    p.category,
+    COUNT(CASE WHEN s.status = 'available' THEN 1 END) AS available,
+    COUNT(CASE WHEN s.status = 'sold'      THEN 1 END) AS sold,
+    COUNT(CASE WHEN s.status = 'damaged'   THEN 1 END) AS damaged,
+    COUNT(*) AS total
+  FROM products p
+  LEFT JOIN serial_numbers s ON p.product_id = s.product_id
+  GROUP BY p.product_id, p.product_name, p.category
+  ORDER BY p.product_name;
+
+  -- All available serial numbers for a product
+  SELECT serial_id, serial_number, status, created_at
+  FROM serial_numbers
+  WHERE product_id = 1 AND status = 'available'
+  ORDER BY serial_number;
+
+  -- Transaction history with item count
+  SELECT
+    t.transaction_id,
+    t.transaction_type,
+    t.reference_note,
+    t.created_at,
+    COUNT(i.item_id) AS units_moved
+  FROM stock_transactions t
+  LEFT JOIN stock_transaction_items i ON t.transaction_id = i.transaction_id
+  GROUP BY t.transaction_id
+  ORDER BY t.created_at DESC;
+
+  -- Full details of one transaction
+  SELECT
+    t.transaction_id,
+    t.transaction_type,
+    t.reference_note,
+    t.created_at,
+    p.product_name,
+    s.serial_number,
+    s.status AS current_status
+  FROM stock_transactions t
+  JOIN stock_transaction_items i ON t.transaction_id = i.transaction_id
+  JOIN products p ON i.product_id = p.product_id
+  JOIN serial_numbers s ON i.serial_id = s.serial_id
+  WHERE t.transaction_id = 101;
+
+  -- Count transactions by type per day
+  SELECT
+    DATE(created_at) AS date,
+    transaction_type,
+    COUNT(*) AS count
+  FROM stock_transactions
+  GROUP BY DATE(created_at), transaction_type
+  ORDER BY date DESC;
+
+  -- Find all transactions that moved a specific serial number
+  SELECT
+    t.transaction_id,
+    t.transaction_type,
+    t.reference_note,
+    t.created_at
+  FROM stock_transactions t
+  JOIN stock_transaction_items i ON t.transaction_id = i.transaction_id
+  JOIN serial_numbers s ON i.serial_id = s.serial_id
+  WHERE s.serial_number = 'HI98130-SN-2024-001';
+
+  -- Users list (no passwords)
+  SELECT user_id, username, role, created_at
+  FROM users
+  ORDER BY created_at DESC;
+
+  -- Products with no serial numbers (never stocked)
+  SELECT p.product_id, p.product_name, p.category
+  FROM products p
+  LEFT JOIN serial_numbers s ON p.product_id = s.product_id
+  WHERE s.serial_id IS NULL;
+
+
+================================================================================
+END OF DATABASE DOCUMENTATION
+================================================================================
+Generated : 2026-10-19
+Database  : MySQL 8.x - smartinventory
+ORM       : Spring Data JPA / Hibernate 6.x
+Migrations: Flyway (spring.flyway.enabled=true)
+Project   : SmartInventory Management System
+================================================================================

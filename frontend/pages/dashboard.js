@@ -23,8 +23,8 @@ async function renderDashboard(container) {
         statCard('orange', 'bi-exclamation-triangle-fill', damaged, 'Damaged') +
       '</div>' +
 
-      // Two columns
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+      // Two columns (responsive via .dash-grid CSS class)
+      '<div class="dash-grid">' +
 
         // Recent transactions
         '<div class="card">' +
