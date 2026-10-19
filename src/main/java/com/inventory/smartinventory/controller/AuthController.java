@@ -14,6 +14,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 /**
  * REST controller for authentication.
@@ -49,7 +50,7 @@ public class AuthController {
     // ============================================
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
 
         // Let Spring Security verify username + password against the DB
         // Throws BadCredentialsException if wrong ? caught by GlobalExceptionHandler (500)
@@ -80,7 +81,7 @@ public class AuthController {
     // ============================================
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
 
         // Check if username already taken
         if (userRepository.existsByUsername(request.getUsername())) {

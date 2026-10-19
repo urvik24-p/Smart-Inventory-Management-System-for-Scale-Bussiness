@@ -16,10 +16,10 @@ public class Product {
     @Column(name = "product_name", nullable = false)
     private String productName;
 
-    @Column(name = "category")
+    @Column(name = "category", length = 100)
     private String category;
 
-    @Column(name = "brand")
+    @Column(name = "brand", length = 100)
     private String brand;
 
     @Column(name = "created_at")

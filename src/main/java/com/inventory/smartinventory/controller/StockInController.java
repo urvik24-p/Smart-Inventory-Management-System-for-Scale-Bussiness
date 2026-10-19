@@ -5,6 +5,7 @@ import com.inventory.smartinventory.entity.StockTransaction;
 import com.inventory.smartinventory.service.StockInService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 /**
  * REST controller for Stock In operations.
@@ -41,7 +42,7 @@ public class StockInController {
 
     @PostMapping
     public ResponseEntity<StockTransaction> stockIn(
-            @RequestBody StockInRequest request) {
+            @Valid @RequestBody StockInRequest request) {
 
         StockTransaction transaction = stockInService.processStockIn(request);
 

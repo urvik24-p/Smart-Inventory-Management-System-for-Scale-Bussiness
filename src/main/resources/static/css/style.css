@@ -650,6 +650,26 @@ select.form-input { cursor: pointer; background-image: url("data:image/svg+xml,%
   #menu-toggle { display: flex !important; align-items: center; }
   .page-body { padding: 14px 16px; }
   .top-bar { padding: 0 16px; }
+  .page-title { font-size: 16px; }
+  .page-subtitle { display: none; }
+  .card-header { padding: 12px 14px; }
+  .si-table thead th, .si-table tbody td { padding: 9px 10px; }
+  .modal-dialog { margin: 10px; }
+  .si-toast { min-width: 0; width: calc(100vw - 28px); max-width: none; }
+}
+
+@media (max-width: 520px) {
+  .page-body { padding: 12px; }
+  .top-bar { height: 58px; padding: 0 12px; }
+  .mode-toggle { flex-direction: column; }
+  .form-input, .btn-blue, .btn-green, .btn-red, .btn-ghost { min-height: 42px; }
+  .login-card { padding: 28px 20px; }
+  .stat-card { padding: 14px; }
+  .stat-value { font-size: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 @media (min-width: 769px) {

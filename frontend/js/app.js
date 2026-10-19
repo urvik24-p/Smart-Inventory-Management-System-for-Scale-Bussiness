@@ -9,6 +9,8 @@ document.getElementById('sidebar-username').textContent = username;
 document.getElementById('sidebar-role').textContent     = role;
 document.getElementById('user-avatar').textContent      = username.charAt(0).toUpperCase();
 
+if (role !== 'ADMIN') document.querySelectorAll('[data-admin-only]').forEach(function(el) { el.remove(); });
+
 // Logout
 document.getElementById('btn-logout').addEventListener('click', function() {
   localStorage.clear();
@@ -19,6 +21,7 @@ document.getElementById('btn-logout').addEventListener('click', function() {
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').style.display = 'block'; }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').style.display = 'none'; }
 document.getElementById('menu-toggle').addEventListener('click', openSidebar);
+document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
 
 // Page metadata
 var pageMeta = {

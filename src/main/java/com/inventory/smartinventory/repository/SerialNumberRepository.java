@@ -8,6 +8,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 /**
  * Repository for serial_numbers table.
@@ -18,11 +22,23 @@ import java.util.Optional;
 @Repository
 public interface SerialNumberRepository extends JpaRepository<SerialNumber, Integer> {
 
+    @Override
+    @EntityGraph(attributePaths = "product")
+    List<SerialNumber> findAll();
+
+    @Override
+    @EntityGraph(attributePaths = "product")
+    Optional<SerialNumber> findById(Integer serialId);
+
     // ============================================
     // Find by serial number value (globally unique)
     // Used to look up a specific unit
     // ============================================
     Optional<SerialNumber> findBySerialNumber(String serialNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from SerialNumber s join fetch s.product where s.serialNumber = :serialNumber")
+    Optional<SerialNumber> findBySerialNumberForUpdate(String serialNumber);
 
     // ============================================
     // Check if a serial number value already exists
@@ -33,6 +49,7 @@ public interface SerialNumberRepository extends JpaRepository<SerialNumber, Inte
     // ============================================
     // Find all serial numbers belonging to a product
     // ============================================
+    @EntityGraph(attributePaths = "product")
     List<SerialNumber> findByProduct(Product product);
 
     // ============================================
@@ -40,5 +57,8 @@ public interface SerialNumberRepository extends JpaRepository<SerialNumber, Inte
     // Most important use: findByProductAndStatus(product, SerialStatus.available)
     // Required by Stock Out to get only sellable units
     // ============================================
+    @EntityGraph(attributePaths = "product")
     List<SerialNumber> findByProductAndStatus(Product product, SerialStatus status);
+
+    long countByProduct(Product product);
 }

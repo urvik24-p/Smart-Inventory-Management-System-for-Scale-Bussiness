@@ -11,6 +11,8 @@ import com.inventory.smartinventory.repository.SerialNumberRepository;
 import com.inventory.smartinventory.repository.StockTransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Business logic for Stock In operations.
@@ -62,16 +64,21 @@ public class StockInService {
         transaction.setTransactionType(TransactionType.IN);
         transaction.setReferenceNote(request.getReferenceNote());
 
+        Set<String> requestSerials = new HashSet<>();
         // For each serial number: validate -> create SN -> create item
         for (String snValue : request.getSerialNumbers()) {
+            String serialNumber = snValue.trim();
+            if (!requestSerials.add(serialNumber)) {
+                throw new InvalidOperationException("A serial number may appear only once per stock-in request: " + serialNumber);
+            }
 
-            if (serialNumberRepository.existsBySerialNumber(snValue)) {
-                throw new DuplicateSerialNumberException(snValue);
+            if (serialNumberRepository.existsBySerialNumber(serialNumber)) {
+                throw new DuplicateSerialNumberException(serialNumber);
             }
 
             SerialNumber sn = new SerialNumber();
             sn.setProduct(product);
-            sn.setSerialNumber(snValue);
+            sn.setSerialNumber(serialNumber);
             SerialNumber savedSn = serialNumberRepository.save(sn);
 
             StockTransactionItem item = new StockTransactionItem();

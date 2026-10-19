@@ -1,6 +1,10 @@
 package com.inventory.smartinventory.dto;
 
 import java.util.List;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 /**
  * DTO - body of a Stock Out request.
@@ -21,12 +25,15 @@ import java.util.List;
 public class StockOutRequest {
 
     // The product whose stock is being dispatched
+    @Positive
     private int productId;
 
     // Serial numbers to mark as sold
-    private List<String> serialNumbers;
+    @NotEmpty @Size(max = 500)
+    private List<@NotBlank @Size(max = 100) String> serialNumbers;
 
     // Optional free-text: customer name, invoice number, etc.
+    @Size(max = 255)
     private String referenceNote;
 
     // Default constructor required by Jackson

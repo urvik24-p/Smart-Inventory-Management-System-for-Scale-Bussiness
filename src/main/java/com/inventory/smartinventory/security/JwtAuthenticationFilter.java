@@ -60,7 +60,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         // --- Step 3: Extract the username from the token ---
-        String username = jwtUtil.extractUsername(token);
+        String username;
+        try {
+            username = jwtUtil.extractUsername(token);
+        } catch (Exception ignored) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // --- Step 4: If username found and not already authenticated ---
         if (username != null &&

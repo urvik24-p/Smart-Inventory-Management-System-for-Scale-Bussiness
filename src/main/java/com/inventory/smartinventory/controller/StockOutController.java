@@ -5,6 +5,7 @@ import com.inventory.smartinventory.entity.StockTransaction;
 import com.inventory.smartinventory.service.StockOutService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 /**
  * REST controller for Stock Out operations.
@@ -47,7 +48,7 @@ public class StockOutController {
 
     @PostMapping
     public ResponseEntity<StockTransaction> stockOut(
-            @RequestBody StockOutRequest request) {
+            @Valid @RequestBody StockOutRequest request) {
 
         StockTransaction transaction = stockOutService.processStockOut(request);
 

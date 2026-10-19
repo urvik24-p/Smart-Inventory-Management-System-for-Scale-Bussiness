@@ -3,8 +3,10 @@
 async function renderProducts(container) {
   container.innerHTML = '<div class="skeleton" style="height:400px;border-radius:10px;"></div>';
 
-  document.getElementById('top-actions').innerHTML =
-    '<button class="btn-blue" id="btn-add-product"><i class="bi bi-plus-lg"></i> Add Product</button>';
+  var canManageProducts = (localStorage.getItem('role') === 'ADMIN');
+
+  document.getElementById('top-actions').innerHTML = canManageProducts
+    ? '<button class="btn-blue" id="btn-add-product"><i class="bi bi-plus-lg"></i> Add Product</button>' : '';
 
   try {
     var products = await ProductAPI.getAll();
@@ -30,10 +32,10 @@ async function renderProducts(container) {
                   '<td>' + (p.category ? '<span class="badge-cat">' + escHtml(p.category) + '</span>' : '<span style="color:var(--text-muted)">—</span>') + '</td>' +
                   '<td style="color:var(--text-sec)">' + (escHtml(p.brand)||'—') + '</td>' +
                   '<td style="color:var(--text-muted);font-size:12px">' + formatDateShort(p.createdAt) + '</td>' +
-                  '<td style="text-align:right">' +
+                  '<td style="text-align:right">' + (canManageProducts ?
                     '<button class="btn-icon btn-edit-prod me-1" data-id="' + p.productId + '" title="Edit"><i class="bi bi-pencil"></i></button>' +
                     '<button class="btn-icon del btn-del-prod" data-id="' + p.productId + '" title="Delete"><i class="bi bi-trash"></i></button>' +
-                  '</td></tr>';
+                  '' : '—') + '</td></tr>';
               }).join('') +
               '</tbody></table></div>'
         ) +
@@ -89,7 +91,7 @@ async function renderProducts(container) {
     var modal = new bootstrap.Modal(document.getElementById('prodModal'));
 
     // Add button
-    document.getElementById('btn-add-product').addEventListener('click', function() {
+    if (canManageProducts) document.getElementById('btn-add-product').addEventListener('click', function() {
       document.getElementById('prodModalTitle').textContent = 'Add Product';
       document.getElementById('pf-id').value = '';
       document.getElementById('pf-name').value = '';

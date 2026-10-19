@@ -9,6 +9,7 @@ import com.inventory.smartinventory.exception.ResourceNotFoundException;
 import com.inventory.smartinventory.repository.ProductRepository;
 import com.inventory.smartinventory.repository.SerialNumberRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -90,13 +91,14 @@ public class SerialNumberService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Product not found with ID: " + productId));
 
-        if (serialNumberRepository.existsBySerialNumber(serialNumberValue)) {
-            throw new DuplicateSerialNumberException(serialNumberValue);
+        String normalized = serialNumberValue.trim();
+        if (serialNumberRepository.existsBySerialNumber(normalized)) {
+            throw new DuplicateSerialNumberException(normalized);
         }
 
         SerialNumber sn = new SerialNumber();
         sn.setProduct(product);
-        sn.setSerialNumber(serialNumberValue);
+        sn.setSerialNumber(normalized);
         // status defaults to 'available' via the entity constructor
 
         return serialNumberRepository.save(sn);
@@ -106,13 +108,17 @@ public class SerialNumberService {
     // UPDATE STATUS OF A SERIAL NUMBER
     // ============================================
 
+    @Transactional
     public SerialNumber updateStatus(int serialId, SerialStatus newStatus) {
 
         SerialNumber sn = serialNumberRepository.findById(serialId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Serial number not found with ID: " + serialId));
 
-        sn.setStatus(newStatus);
+        if (newStatus != SerialStatus.damaged || sn.getStatus() != SerialStatus.available) {
+            throw new InvalidOperationException("Only an available serial number can be marked damaged manually.");
+        }
+        sn.setStatus(SerialStatus.damaged);
 
         return serialNumberRepository.save(sn);
     }

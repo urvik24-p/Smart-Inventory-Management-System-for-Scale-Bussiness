@@ -3,56 +3,29 @@ package com.inventory.smartinventory.config;
 import com.inventory.smartinventory.entity.*;
 import com.inventory.smartinventory.repository.ProductRepository;
 import com.inventory.smartinventory.repository.SerialNumberRepository;
-import com.inventory.smartinventory.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.annotation.Profile;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
+@Profile("dev")
 public class DataInitializer implements CommandLineRunner {
 
     private final ProductRepository productRepository;
     private final SerialNumberRepository serialNumberRepository;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(ProductRepository productRepository,
-                           SerialNumberRepository serialNumberRepository,
-                           UserRepository userRepository,
-                           PasswordEncoder passwordEncoder) {
+                           SerialNumberRepository serialNumberRepository) {
         this.productRepository = productRepository;
         this.serialNumberRepository = serialNumberRepository;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) {
-        seedUsers();
         seedProductsAndSerials();
-    }
-
-    private void seedUsers() {
-        if (!userRepository.existsByUsername("admin")) {
-            AppUser admin = new AppUser();
-            admin.setUsername("admin");
-            admin.setPassword(passwordEncoder.encode("admin123"));
-            admin.setRole(UserRole.ADMIN);
-            userRepository.save(admin);
-            System.out.println(">>> [INIT] Created default 'admin' user.");
-        }
-
-        if (!userRepository.existsByUsername("staff1")) {
-            AppUser staff = new AppUser();
-            staff.setUsername("staff1");
-            staff.setPassword(passwordEncoder.encode("admin123"));
-            staff.setRole(UserRole.STAFF);
-            userRepository.save(staff);
-            System.out.println(">>> [INIT] Created default 'staff1' user.");
-        }
     }
 
     private void seedProductsAndSerials() {

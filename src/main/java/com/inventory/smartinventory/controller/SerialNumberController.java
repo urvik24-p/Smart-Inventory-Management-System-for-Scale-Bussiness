@@ -2,12 +2,14 @@ package com.inventory.smartinventory.controller;
 
 import com.inventory.smartinventory.entity.SerialNumber;
 import com.inventory.smartinventory.entity.SerialStatus;
+import com.inventory.smartinventory.dto.SerialNumberRequest;
+import com.inventory.smartinventory.dto.SerialStatusRequest;
+import jakarta.validation.Valid;
 import com.inventory.smartinventory.service.SerialNumberService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * REST controller for serial number operations.
@@ -100,11 +102,8 @@ public class SerialNumberController {
     @PostMapping("/product/{productId}")
     public ResponseEntity<SerialNumber> addSerialNumber(
             @PathVariable int productId,
-            @RequestBody Map<String, String> body) {
-
-        String serialNumberValue = body.get("serialNumber");
-
-        SerialNumber saved = serialNumberService.addSerialNumber(productId, serialNumberValue);
+            @Valid @RequestBody SerialNumberRequest body) {
+        SerialNumber saved = serialNumberService.addSerialNumber(productId, body.getSerialNumber());
 
         return ResponseEntity.status(201).body(saved);
     }
@@ -118,11 +117,8 @@ public class SerialNumberController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<SerialNumber> updateStatus(
             @PathVariable int id,
-            @RequestBody Map<String, String> body) {
-
-        SerialStatus newStatus = SerialStatus.valueOf(body.get("status"));
-
-        SerialNumber updated = serialNumberService.updateStatus(id, newStatus);
+            @Valid @RequestBody SerialStatusRequest body) {
+        SerialNumber updated = serialNumberService.updateStatus(id, body.getStatus());
 
         return ResponseEntity.ok(updated);
     }

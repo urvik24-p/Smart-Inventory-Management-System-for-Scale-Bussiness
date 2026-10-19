@@ -1,6 +1,8 @@
 package com.inventory.smartinventory.controller;
 
 import com.inventory.smartinventory.entity.Product;
+import com.inventory.smartinventory.dto.ProductRequest;
+import jakarta.validation.Valid;
 import com.inventory.smartinventory.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -49,9 +51,9 @@ public class ProductController {
     // ============================================
     @PostMapping
     public ResponseEntity<Product> addProduct(
-            @RequestBody Product product) {
+            @Valid @RequestBody ProductRequest product) {
 
-        Product savedProduct = productService.addProduct(product);
+        Product savedProduct = productService.addProduct(product.getProductName(), product.getCategory(), product.getBrand());
 
         return ResponseEntity.status(201).body(savedProduct);
     }
@@ -63,9 +65,9 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProduct(
             @PathVariable int id,
-            @RequestBody Product product) {
+            @Valid @RequestBody ProductRequest product) {
 
-        Product updatedProduct = productService.updateProduct(id, product);
+        Product updatedProduct = productService.updateProduct(id, product.getProductName(), product.getCategory(), product.getBrand());
 
         return ResponseEntity.ok(updatedProduct);
     }

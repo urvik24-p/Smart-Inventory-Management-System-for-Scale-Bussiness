@@ -39,11 +39,22 @@ async function apiFetch(endpoint, options = {}) {
         headers['Authorization'] = 'Bearer ' + token;
     }
 
-    // Make the request
-    const response = await fetch(API_BASE + endpoint, {
-        ...options,
-        headers,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let response;
+    try {
+        response = await fetch(API_BASE + endpoint, { ...options, headers, signal: controller.signal });
+    } catch (error) {
+        if (error.name === 'AbortError') throw new Error('The server took too long to respond. Please try again.');
+        throw new Error('Unable to reach the server. Check your connection and try again.');
+    } finally {
+        clearTimeout(timeout);
+    }
+    if (response.status === 401 && endpoint !== '/auth/login') {
+        localStorage.removeItem('token'); localStorage.removeItem('username'); localStorage.removeItem('role');
+        if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') window.location.href = 'index.html';
+        throw new Error('Your session has expired. Please sign in again.');
+    }
 
     // 204 No Content (e.g., after DELETE)
     if (response.status === 204) {

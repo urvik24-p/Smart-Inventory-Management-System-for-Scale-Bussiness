@@ -6,8 +6,8 @@ WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 
-# Package the application (skip tests for faster cloud build)
-RUN mvn clean package -DskipTests
+# Run the test suite before packaging the production artifact.
+RUN mvn clean verify
 
 # Stage 2: Run the application with a lightweight Java 21 JRE
 FROM eclipse-temurin:21-jre
@@ -20,5 +20,5 @@ COPY --from=build /app/target/*.jar app.jar
 ENV PORT=8081
 EXPOSE 8081
 
-# Launch Spring Boot
-ENTRYPOINT ["java", "-Dserver.port=${PORT}", "-jar", "app.jar"]
+# application.properties resolves the deployment-provided PORT.
+ENTRYPOINT ["java", "-jar", "app.jar"]

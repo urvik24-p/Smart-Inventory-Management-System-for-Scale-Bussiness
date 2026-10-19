@@ -10,6 +10,8 @@ import com.inventory.smartinventory.repository.SerialNumberRepository;
 import com.inventory.smartinventory.repository.StockTransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Business logic for Stock Out operations.
@@ -62,13 +64,18 @@ public class StockOutService {
         transaction.setTransactionType(TransactionType.OUT);
         transaction.setReferenceNote(request.getReferenceNote());
 
+        Set<String> requestSerials = new HashSet<>();
         // For each serial number: validate -> mark sold -> build item
         for (String snValue : request.getSerialNumbers()) {
+            String serialNumber = snValue.trim();
+            if (!requestSerials.add(serialNumber)) {
+                throw new InvalidOperationException("A serial number may appear only once per stock-out request: " + serialNumber);
+            }
 
             // Must exist in the DB
-            SerialNumber sn = serialNumberRepository.findBySerialNumber(snValue)
+            SerialNumber sn = serialNumberRepository.findBySerialNumberForUpdate(serialNumber)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Serial number not found: " + snValue));
+                            "Serial number not found: " + serialNumber));
 
             // Must belong to the specified product
             if (sn.getProduct().getProductId() != product.getProductId()) {

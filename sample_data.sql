@@ -15,7 +15,7 @@
 --        "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p < sample_data.sql
 --
 --      PowerShell:
---        Get-Content "c:\Inventory sem 3\smartinventory\sample_data.sql" | & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -purvik2407
+--        Get-Content "c:\path\to\sample_data.sql" | & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u inventory_dev -p
 --
 --  NOTE: Run rebuild_db.sql FIRST if starting fresh.
 -- ============================================================
